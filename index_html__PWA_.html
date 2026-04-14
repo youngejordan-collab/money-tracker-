@@ -1,0 +1,813 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>The Money Tracker</title>
+
+<!-- ── PWA Meta Tags ── -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#065f46" />
+<meta name="mobile-web-app-capable" content="yes" />
+
+<!-- iOS-specific PWA tags -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Money Tracker" />
+<!-- iOS icons generated via canvas on load (see script) -->
+<link rel="apple-touch-icon" id="apple-touch-icon" />
+
+<!-- SEO / Share -->
+<meta name="description" content="Your Personal AI Financial Assistant — build a budget, set goals, get a plan." />
+<meta property="og:title" content="The Money Tracker" />
+<meta property="og:description" content="Your Personal AI Financial Assistant" />
+<meta property="og:type" content="website" />
+
+<style>
+  :root {
+    --green-400: #4ade80; --green-500: #22c55e; --green-600: #16a34a;
+    --green-700: #15803d; --teal-500: #14b8a6; --teal-600: #0d9488;
+    --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb;
+    --gray-300:#d1d5db; --gray-400:#9ca3af; --gray-500:#6b7280;
+    --gray-700:#374151; --gray-800:#1f2937; --gray-900:#111827;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+    --shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+    --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
+    --radius:12px; --radius-lg:20px; --radius-full:9999px;
+    --safe-top: env(safe-area-inset-top);
+    --safe-bottom: env(safe-area-inset-bottom);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--gray-50); color: var(--gray-800);
+    min-height: 100vh; min-height: 100dvh;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    overscroll-behavior: none;
+  }
+
+  /* ── INSTALL BANNER ── */
+  #install-banner {
+    position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+    z-index: 9999; width: calc(100% - 2rem); max-width: 420px;
+    background: #fff; border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    padding: 1.1rem 1.25rem;
+    display: none; align-items: center; gap: 1rem;
+    border: 1px solid var(--gray-100);
+    animation: slideUp 0.4s ease;
+  }
+  #install-banner.show { display: flex; }
+  @keyframes slideUp { from { opacity:0; transform: translateX(-50%) translateY(20px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+  .install-icon { font-size: 2rem; flex-shrink: 0; }
+  .install-text { flex: 1; }
+  .install-text strong { display: block; font-size: 0.95rem; color: var(--gray-900); }
+  .install-text span { font-size: 0.82rem; color: var(--gray-500); }
+  .install-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .btn-install {
+    background: linear-gradient(135deg, var(--green-500), var(--teal-500));
+    color: #fff; border: none; border-radius: var(--radius-full);
+    padding: 0.5rem 1rem; font-size: 0.88rem; font-weight: 700; cursor: pointer;
+  }
+  .btn-dismiss {
+    background: var(--gray-100); color: var(--gray-600); border: none;
+    border-radius: var(--radius-full); padding: 0.5rem 0.75rem;
+    font-size: 0.88rem; cursor: pointer;
+  }
+
+  /* ── iOS INSTALL SHEET ── */
+  #ios-sheet {
+    position: fixed; inset: 0; z-index: 10000;
+    background: rgba(0,0,0,0.5); display: none; align-items: flex-end;
+    padding-bottom: var(--safe-bottom);
+  }
+  #ios-sheet.show { display: flex; }
+  .ios-sheet-inner {
+    background: #fff; border-radius: 24px 24px 0 0;
+    width: 100%; padding: 1.5rem 1.5rem 2rem;
+  }
+  .ios-sheet-handle { width: 36px; height: 4px; background: var(--gray-300); border-radius: 2px; margin: 0 auto 1.5rem; }
+  .ios-sheet-title { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.4rem; }
+  .ios-sheet-sub { font-size: 0.88rem; color: var(--gray-500); margin-bottom: 1.5rem; }
+  .ios-step { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--gray-50); border-radius: var(--radius); margin-bottom: 0.6rem; }
+  .ios-step-num { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,var(--green-500),var(--teal-500)); color:#fff; display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:700;flex-shrink:0; }
+  .ios-step-text { font-size: 0.9rem; color: var(--gray-700); }
+  .ios-step-text strong { color: var(--gray-900); }
+  .btn-ios-close { width:100%; margin-top:1rem; background:linear-gradient(135deg,var(--green-500),var(--teal-500)); color:#fff; border:none; border-radius:var(--radius-full); padding:0.9rem; font-size:1rem; font-weight:700; cursor:pointer; }
+
+  /* ── UPDATE TOAST ── */
+  #update-toast {
+    position: fixed; top: 1rem; left: 50%; transform: translateX(-50%);
+    z-index: 9999; background: var(--gray-900); color: #fff;
+    padding: 0.75rem 1.25rem; border-radius: var(--radius-full);
+    font-size: 0.88rem; display: none; align-items: center; gap: 0.75rem;
+    box-shadow: var(--shadow-lg); white-space: nowrap;
+  }
+  #update-toast.show { display: flex; }
+  .btn-update { background: var(--green-500); color: #fff; border: none; border-radius: var(--radius-full); padding: 0.3rem 0.75rem; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; min-height: 100dvh; }
+  .screen.active { display: flex; }
+
+  /* ── WELCOME ── */
+  #screen-welcome {
+    flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 40%, #0f766e 100%);
+    padding: 2rem; text-align: center; position: relative; overflow: hidden;
+  }
+  #screen-welcome::before {
+    content:''; position:absolute; inset:0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .welcome-logo { width:100px;height:100px;background:rgba(255,255,255,.15);border-radius:28px;display:flex;align-items:center;justify-content:center;font-size:3rem;margin-bottom:2rem;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);box-shadow:0 8px 32px rgba(0,0,0,.2);animation:float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  .welcome-title { font-size:clamp(2.5rem,7vw,5rem);font-weight:800;color:#fff;letter-spacing:-.02em;line-height:1.1;margin-bottom:1rem; }
+  .welcome-tagline { font-size:1.1rem;color:rgba(255,255,255,.75);margin-bottom:2.5rem;max-width:400px;line-height:1.6; }
+  .welcome-steps { display:flex;gap:1rem;margin-bottom:2.5rem;flex-wrap:wrap;justify-content:center; }
+  .welcome-step { display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:var(--radius-full);padding:.5rem 1rem;color:rgba(255,255,255,.9);font-size:.85rem;backdrop-filter:blur(8px); }
+  .btn-primary { background:#fff;color:#065f46;border:none;padding:1rem 2.5rem;border-radius:var(--radius-full);font-size:1.1rem;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.2);transition:all .2s;display:inline-flex;align-items:center;gap:.5rem; }
+  .btn-primary:hover { transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.3); }
+  .install-hint { margin-top:1.25rem;color:rgba(255,255,255,.55);font-size:0.8rem; }
+
+  /* ── APP SHELL ── */
+  #app-shell { flex-direction:column;width:100%; }
+  .app-header { background:#fff;border-bottom:1px solid var(--gray-200);padding:.9rem 1.25rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm); }
+  .app-logo { display:flex;align-items:center;gap:.6rem;font-weight:800;font-size:1.1rem;color:var(--gray-900); }
+  .app-logo-icon { width:34px;height:34px;background:linear-gradient(135deg,var(--green-500),var(--teal-500));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem; }
+  .user-chip { display:flex;align-items:center;gap:.4rem;background:var(--gray-100);border-radius:var(--radius-full);padding:.35rem .85rem;font-size:.85rem;color:var(--gray-700); }
+  .avatar { width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--green-500),var(--teal-500));display:flex;align-items:center;justify-content:center;color:#fff;font-size:.7rem;font-weight:700; }
+  .app-content { flex:1;padding:1.5rem 1rem;max-width:820px;margin:0 auto;width:100%; }
+  @media (min-width:600px) { .app-content { padding:2rem 1.5rem; } }
+
+  /* ── PROGRESS ── */
+  .step-label { font-size:.75rem;color:var(--gray-400);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.05em; }
+  .progress-bar-wrap { background:var(--gray-200);border-radius:var(--radius-full);height:5px;margin-bottom:1.5rem;overflow:hidden; }
+  .progress-bar-fill { height:100%;background:linear-gradient(90deg,var(--green-500),var(--teal-500));border-radius:var(--radius-full);transition:width .5s ease; }
+
+  /* ── CARDS ── */
+  .card { background:#fff;border-radius:var(--radius-lg);padding:1.5rem;box-shadow:var(--shadow-md);border:1px solid var(--gray-100);margin-bottom:1.25rem; }
+  .card-title { font-size:1.2rem;font-weight:700;color:var(--gray-900);margin-bottom:.4rem; }
+  .card-sub { font-size:.9rem;color:var(--gray-500);margin-bottom:1.25rem; }
+
+  /* ── FORMS ── */
+  .form-group { margin-bottom:1.1rem; }
+  label { display:block;font-size:.88rem;font-weight:600;color:var(--gray-700);margin-bottom:.35rem; }
+  input[type=text],input[type=email],input[type=number],textarea {
+    width:100%;padding:.7rem 1rem;border:1.5px solid var(--gray-200);
+    border-radius:var(--radius);font-size:1rem;color:var(--gray-800);
+    background:var(--gray-50);transition:all .15s;outline:none;font-family:inherit;
+    -webkit-appearance:none;
+  }
+  input:focus,textarea:focus { border-color:var(--green-500);background:#fff;box-shadow:0 0 0 3px rgba(34,197,94,.15); }
+  textarea { resize:vertical;min-height:75px; }
+  .hint { font-size:.78rem;color:var(--gray-400);margin-top:.25rem; }
+  .form-row { display:grid;grid-template-columns:1fr 1fr;gap:1rem; }
+  @media (max-width:520px) { .form-row { grid-template-columns:1fr; } }
+  .category-grid { display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.4rem; }
+  .cat-chip { padding:.4rem .85rem;border-radius:var(--radius-full);border:1.5px solid var(--gray-200);background:var(--gray-50);font-size:.83rem;cursor:pointer;transition:all .15s;color:var(--gray-700);user-select:none;-webkit-user-select:none; }
+  .cat-chip.selected { background:#dcfce7;border-color:var(--green-500);color:var(--green-700);font-weight:600; }
+
+  /* ── BUTTONS ── */
+  .btn { padding:.7rem 1.5rem;border-radius:var(--radius-full);font-size:.95rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:.4rem;touch-action:manipulation; }
+  .btn-green { background:linear-gradient(135deg,var(--green-500),var(--teal-500));color:#fff;box-shadow:0 2px 10px rgba(34,197,94,.3); }
+  .btn-green:hover,.btn-green:active { transform:translateY(-1px);box-shadow:0 4px 16px rgba(34,197,94,.4); }
+  .btn-green:disabled { opacity:.5;cursor:not-allowed;transform:none; }
+  .btn-outline { background:transparent;color:var(--gray-600);border:1.5px solid var(--gray-300); }
+  .btn-outline:hover { background:var(--gray-100); }
+  .btn-row { display:flex;justify-content:space-between;align-items:center;margin-top:1.25rem;gap:.75rem; }
+
+  /* ── CHAT ── */
+  .chat-window { background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);height:360px;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.65rem;scroll-behavior:smooth; }
+  .msg { display:flex;gap:.4rem;align-items:flex-end;animation:msgIn .3s ease; }
+  @keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .msg.user { flex-direction:row-reverse; }
+  .msg-bubble { max-width:78%;padding:.65rem .9rem;border-radius:18px;font-size:.9rem;line-height:1.5; }
+  .msg.assistant .msg-bubble { background:#fff;color:var(--gray-800);border:1px solid var(--gray-200);border-bottom-left-radius:4px;box-shadow:var(--shadow-sm); }
+  .msg.user .msg-bubble { background:linear-gradient(135deg,var(--green-500),var(--teal-500));color:#fff;border-bottom-right-radius:4px; }
+  .msg-avatar { width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem; }
+  .msg.assistant .msg-avatar { background:#f0fdf4;border:1px solid #bbf7d0; }
+  .msg.user .msg-avatar { background:var(--gray-200); }
+  .chat-input-row { display:flex;gap:.5rem;margin-top:.75rem; }
+  .chat-input { flex:1;padding:.7rem 1rem;border:1.5px solid var(--gray-200);border-radius:var(--radius-full);font-size:.93rem;outline:none;font-family:inherit;background:#fff;transition:all .15s;-webkit-appearance:none; }
+  .chat-input:focus { border-color:var(--green-500);box-shadow:0 0 0 3px rgba(34,197,94,.15); }
+  .btn-send { background:linear-gradient(135deg,var(--green-500),var(--teal-500));color:#fff;border:none;border-radius:var(--radius-full);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;flex-shrink:0; }
+  .btn-send:disabled { opacity:.5;cursor:not-allowed; }
+  .typing-dots { display:flex;gap:4px;align-items:center;padding:.4rem; }
+  .typing-dot { width:7px;height:7px;border-radius:50%;background:var(--gray-400);animation:bounce 1.2s infinite; }
+  .typing-dot:nth-child(2){animation-delay:.2s} .typing-dot:nth-child(3){animation-delay:.4s}
+  @keyframes bounce { 0%,80%,100%{transform:scale(.8);opacity:.5} 40%{transform:scale(1.2);opacity:1} }
+
+  /* ── PLAN ── */
+  .plan-header { background:linear-gradient(135deg,#064e3b,#0f766e);border-radius:var(--radius-lg);padding:2rem 1.5rem;color:#fff;margin-bottom:1.25rem;text-align:center; }
+  .plan-header h1 { font-size:1.7rem;font-weight:800;margin-bottom:.4rem; }
+  .plan-header p { color:rgba(255,255,255,.8);font-size:.95rem; }
+  .unlock-btns { display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-top:1.5rem; }
+  .unlock-btn { flex:1;min-width:160px;max-width:210px;padding:.9rem 1.1rem;border-radius:var(--radius);border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);cursor:pointer;text-align:left;color:#fff;transition:all .2s;position:relative; }
+  .unlock-btn.active-now { background:rgba(255,255,255,.95);color:#065f46;box-shadow:0 4px 14px rgba(0,0,0,.2); }
+  .unlock-btn-title { font-weight:700;font-size:.95rem;margin-bottom:.2rem; }
+  .unlock-btn-sub { font-size:.78rem;opacity:.8; }
+  .unlock-check { position:absolute;top:.65rem;right:.65rem;font-size:1rem; }
+  .metrics-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.85rem;margin-bottom:1.25rem; }
+  .metric-card { background:#fff;border-radius:var(--radius);padding:1.1rem;border:1px solid var(--gray-100);box-shadow:var(--shadow-sm);text-align:center; }
+  .metric-icon { font-size:1.4rem;margin-bottom:.3rem; }
+  .metric-value { font-size:1.4rem;font-weight:800;color:var(--gray-900); }
+  .metric-label { font-size:.75rem;color:var(--gray-400);margin-top:.15rem; }
+  .metric-badge { display:inline-block;margin-top:.3rem;padding:.12rem .55rem;border-radius:var(--radius-full);background:#dcfce7;color:var(--green-700);font-size:.72rem;font-weight:600; }
+  .section-title { font-size:1rem;font-weight:700;color:var(--gray-900);margin-bottom:.85rem;display:flex;align-items:center;gap:.4rem; }
+  .steps-list { display:flex;flex-direction:column;gap:.65rem; }
+  .step-item { display:flex;gap:.85rem;align-items:flex-start;background:var(--gray-50);border-radius:var(--radius);padding:.9rem;border:1px solid var(--gray-100);transition:all .2s; }
+  .step-item:hover { background:#f0fdf4;border-color:#bbf7d0; }
+  .step-num { width:30px;height:30px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--green-500),var(--teal-500));color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700; }
+  .step-title { font-weight:600;color:var(--gray-800);margin-bottom:.15rem;font-size:.9rem; }
+  .step-desc { font-size:.83rem;color:var(--gray-500);line-height:1.5; }
+  .step-badge { display:inline-block;margin-top:.35rem;padding:.12rem .55rem;border-radius:var(--radius-full);background:#eff6ff;color:#1d4ed8;font-size:.72rem;font-weight:600; }
+  .qw-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.85rem; }
+  .qw-card { background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius);padding:1rem; }
+  .qw-title { font-weight:700;margin-bottom:.3rem;font-size:.9rem; }
+  .qw-desc { font-size:.82rem;color:var(--gray-500);margin-bottom:.5rem;line-height:1.4; }
+  .qw-save { font-weight:700;color:var(--green-700);font-size:.87rem; }
+  .bar-chart { display:flex;flex-direction:column;gap:.55rem; }
+  .bar-row { display:flex;align-items:center;gap:.65rem; }
+  .bar-label { font-size:.78rem;color:var(--gray-600);width:110px;flex-shrink:0;text-align:right; }
+  .bar-track { flex:1;background:var(--gray-100);border-radius:var(--radius-full);height:20px;overflow:hidden; }
+  .bar-fill { height:100%;border-radius:var(--radius-full);background:linear-gradient(90deg,var(--green-500),var(--teal-500));display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-size:.7rem;font-weight:600;transition:width .8s ease;min-width:36px; }
+  .milestone-list { display:flex;flex-direction:column;gap:0; }
+  .ms-item { display:flex;gap:.85rem;position:relative;padding-bottom:1.1rem; }
+  .ms-item:last-child { padding-bottom:0; }
+  .ms-left { display:flex;flex-direction:column;align-items:center; }
+  .ms-dot { width:13px;height:13px;border-radius:50%;background:linear-gradient(135deg,var(--green-500),var(--teal-500));flex-shrink:0;margin-top:.25rem; }
+  .ms-line { width:2px;flex:1;background:var(--gray-200);margin-top:4px; }
+  .ms-item:last-child .ms-line { display:none; }
+  .ms-month { font-weight:700;font-size:.82rem;color:var(--green-700);min-width:68px; }
+  .ms-text { font-size:.87rem;color:var(--gray-700); }
+  .quote-block { background:linear-gradient(135deg,#f0fdf4,#f0fdfa);border-left:4px solid var(--green-500);border-radius:0 var(--radius) var(--radius) 0;padding:1.1rem 1.25rem;font-style:italic;color:var(--gray-700);font-size:.95rem;line-height:1.6; }
+  .footer-brand { text-align:center;color:var(--gray-400);font-size:.82rem;margin:1.5rem 0 .5rem; }
+
+  .error-msg { background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:.65rem .9rem;border-radius:var(--radius);font-size:.87rem;margin-top:.4rem;display:none; }
+  .toast { position:fixed;bottom:6rem;right:1rem;z-index:9000;background:var(--gray-900);color:#fff;padding:.65rem 1.1rem;border-radius:var(--radius);font-size:.87rem;box-shadow:var(--shadow-lg);transform:translateY(12px);opacity:0;transition:all .3s;pointer-events:none; }
+  .toast.show { transform:translateY(0);opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- ═══════ INSTALL BANNER (Android/Chrome) ═══════ -->
+<div id="install-banner">
+  <div class="install-icon">💰</div>
+  <div class="install-text">
+    <strong>Add to Home Screen</strong>
+    <span>Install The Money Tracker for instant access</span>
+  </div>
+  <div class="install-actions">
+    <button class="btn-install" id="btn-install-confirm">Install</button>
+    <button class="btn-dismiss" id="btn-install-dismiss">✕</button>
+  </div>
+</div>
+
+<!-- ═══════ iOS INSTALL SHEET ═══════ -->
+<div id="ios-sheet">
+  <div class="ios-sheet-inner">
+    <div class="ios-sheet-handle"></div>
+    <div class="ios-sheet-title">📲 Install on iPhone / iPad</div>
+    <div class="ios-sheet-sub">Add The Money Tracker to your home screen for an app-like experience — no App Store needed.</div>
+    <div class="ios-step">
+      <div class="ios-step-num">1</div>
+      <div class="ios-step-text">Tap the <strong>Share button</strong> <span style="font-size:1.1em">⬆️</span> at the bottom of Safari</div>
+    </div>
+    <div class="ios-step">
+      <div class="ios-step-num">2</div>
+      <div class="ios-step-text">Scroll down and tap <strong>"Add to Home Screen"</strong></div>
+    </div>
+    <div class="ios-step">
+      <div class="ios-step-num">3</div>
+      <div class="ios-step-text">Tap <strong>"Add"</strong> — done! Open it from your home screen anytime 🎉</div>
+    </div>
+    <button class="btn-ios-close" onclick="closeIosSheet()">Got it!</button>
+  </div>
+</div>
+
+<!-- ═══════ UPDATE TOAST ═══════ -->
+<div id="update-toast">
+  🎉 App updated!
+  <button class="btn-update" onclick="location.reload()">Refresh</button>
+</div>
+
+<!-- ═══════ SCREEN: WELCOME ═══════ -->
+<div id="screen-welcome" class="screen active">
+  <div class="welcome-logo">💰</div>
+  <h1 class="welcome-title">The Money<br>Tracker</h1>
+  <p class="welcome-tagline">Your personal AI financial assistant. Build a plan, track your goals, and take control of your money.</p>
+  <div class="welcome-steps">
+    <div class="welcome-step">📋 Set up your profile</div>
+    <div class="welcome-step">💬 Chat with AI</div>
+    <div class="welcome-step">🗺️ Get your plan</div>
+  </div>
+  <button class="btn-primary" onclick="goTo('screen-app'); showStep(1)">Get Started →</button>
+  <p class="install-hint" id="ios-install-hint" style="display:none">
+    <span onclick="showIosSheet()" style="cursor:pointer;text-decoration:underline">📲 Add to Home Screen</span> for the best experience
+  </p>
+</div>
+
+<!-- ═══════ SCREEN: APP ═══════ -->
+<div id="screen-app" class="screen">
+  <div id="app-shell" class="screen active">
+    <header class="app-header">
+      <div class="app-logo">
+        <div class="app-logo-icon">💰</div>
+        The Money Tracker
+      </div>
+      <div class="user-chip" id="user-chip" style="display:none">
+        <div class="avatar" id="user-avatar"></div>
+        <span id="user-chip-name"></span>
+      </div>
+    </header>
+
+    <div class="app-content">
+      <div id="progress-wrap" style="display:none">
+        <div class="step-label" id="step-label-text"></div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Step 1: Account -->
+      <div id="step-1" style="display:none">
+        <div class="card">
+          <div class="card-title">👋 Create Your Account</div>
+          <div class="card-sub">Just your name and email to get started — takes 10 seconds.</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" id="input-name" placeholder="e.g. Jordan Smith" autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" id="input-email" placeholder="e.g. jordan@email.com" autocomplete="email" />
+            </div>
+          </div>
+          <div id="err-account" class="error-msg">Please enter your name and a valid email address.</div>
+          <div class="btn-row" style="justify-content:flex-end">
+            <button class="btn btn-green" onclick="submitAccount()">Continue →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Financial Profile -->
+      <div id="step-2" style="display:none">
+        <div class="card">
+          <div class="card-title">📋 Your Financial Details</div>
+          <div class="card-sub" id="step2-greeting"></div>
+          <div class="form-group">
+            <label>What's your main financial goal?</label>
+            <textarea id="input-goal" placeholder="e.g. Save for a house down payment in 3 years, pay off student loans, build an emergency fund..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Monthly Income (after tax)</label>
+              <input type="number" id="input-income" placeholder="e.g. 5000" min="0" inputmode="numeric" />
+              <div class="hint">Take-home pay per month in USD</div>
+            </div>
+            <div class="form-group">
+              <label>Monthly Expenses</label>
+              <input type="number" id="input-expenses" placeholder="e.g. 3500" min="0" inputmode="numeric" />
+              <div class="hint">Rent, food, bills, etc.</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Top Spending Categories <span style="color:var(--gray-400);font-weight:400">(tap all that apply)</span></label>
+            <div class="category-grid">
+              <div class="cat-chip" data-val="housing" onclick="toggleCat(this)">🏠 Housing</div>
+              <div class="cat-chip" data-val="food" onclick="toggleCat(this)">🍔 Food</div>
+              <div class="cat-chip" data-val="transport" onclick="toggleCat(this)">🚗 Transport</div>
+              <div class="cat-chip" data-val="subscriptions" onclick="toggleCat(this)">📺 Subscriptions</div>
+              <div class="cat-chip" data-val="healthcare" onclick="toggleCat(this)">🏥 Healthcare</div>
+              <div class="cat-chip" data-val="debt" onclick="toggleCat(this)">💳 Debt</div>
+              <div class="cat-chip" data-val="shopping" onclick="toggleCat(this)">🛍️ Shopping</div>
+              <div class="cat-chip" data-val="travel" onclick="toggleCat(this)">✈️ Travel</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Monthly Savings Target <span style="color:var(--gray-400);font-weight:400">(optional)</span></label>
+            <input type="number" id="input-savings" placeholder="Leave blank — the AI will recommend one" min="0" inputmode="numeric" />
+          </div>
+          <div id="err-profile" class="error-msg">Please fill in your goal, income, and expenses.</div>
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="showStep(1)">← Back</button>
+            <button class="btn btn-green" onclick="submitProfile()">Talk to AI →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Chat -->
+      <div id="step-3" style="display:none">
+        <div class="card">
+          <div class="card-title">💬 Your AI Financial Assistant</div>
+          <div class="card-sub" id="chat-sub"></div>
+          <div class="chat-window" id="chat-window"></div>
+          <div class="chat-input-row">
+            <input class="chat-input" id="chat-input" type="text" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()" />
+            <button class="btn-send" id="btn-send" onclick="sendChat()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <div class="btn-row" style="margin-top:1.25rem">
+            <button class="btn btn-outline" onclick="showStep(2)">← Edit Details</button>
+            <button class="btn btn-green" onclick="buildPlan()">Generate My Plan 🎯</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Dashboard -->
+      <div id="step-4" style="display:none">
+        <div class="plan-header">
+          <div style="font-size:2.2rem;margin-bottom:.6rem">💰</div>
+          <h1>The Money Tracker</h1>
+          <p id="plan-hero-sub"></p>
+          <div class="unlock-btns">
+            <div class="unlock-btn">
+              <div class="unlock-btn-title">📋 Financial Details</div>
+              <div class="unlock-btn-sub">Collected & saved</div>
+              <div class="unlock-check">✅</div>
+            </div>
+            <div class="unlock-btn active-now" onclick="showStep(3)">
+              <div class="unlock-btn-title">💬 AI Assistant</div>
+              <div class="unlock-btn-sub">Unlocked — tap to chat</div>
+              <div class="unlock-check">🔓</div>
+            </div>
+          </div>
+        </div>
+        <div class="metrics-grid" id="metrics-grid"></div>
+        <div id="plan-content"></div>
+        <div class="footer-brand">Made with ❤️ by The Money Tracker</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════
+//  PWA — Service Worker Registration
+// ═══════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      // Listen for updates
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version available — show toast
+            document.getElementById('update-toast').classList.add('show');
+            setTimeout(() => document.getElementById('update-toast').classList.remove('show'), 8000);
+          }
+        });
+      });
+    } catch (err) {
+      console.log('SW registration failed (file may need to be served from a server):', err.message);
+    }
+  });
+}
+
+// ═══════════════════════════════════
+//  PWA — Generate App Icon via Canvas
+//  (for iOS apple-touch-icon)
+// ═══════════════════════════════════
+function generateAppIcon() {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 180; c.height = 180;
+    const ctx = c.getContext('2d');
+    // Background
+    const grad = ctx.createLinearGradient(0,0,180,180);
+    grad.addColorStop(0,'#065f46'); grad.addColorStop(1,'#0f766e');
+    ctx.fillStyle = grad;
+    const r = 36;
+    ctx.beginPath();
+    ctx.moveTo(r,0); ctx.lineTo(180-r,0); ctx.quadraticCurveTo(180,0,180,r);
+    ctx.lineTo(180,180-r); ctx.quadraticCurveTo(180,180,180-r,180);
+    ctx.lineTo(r,180); ctx.quadraticCurveTo(0,180,0,180-r);
+    ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0);
+    ctx.closePath(); ctx.fill();
+    // Dollar sign
+    ctx.fillStyle = '#22c55e';
+    ctx.font = 'bold 90px -apple-system, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('$', 90, 90);
+    // Set as apple-touch-icon
+    document.getElementById('apple-touch-icon').href = c.toDataURL('image/png');
+  } catch(e) {}
+}
+generateAppIcon();
+
+// ═══════════════════════════════════
+//  PWA — Install Prompt (Android/Chrome)
+// ═══════════════════════════════════
+let deferredPrompt = null;
+const installBanner = document.getElementById('install-banner');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show banner after 3 seconds
+  setTimeout(() => installBanner.classList.add('show'), 3000);
+});
+
+document.getElementById('btn-install-confirm').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  installBanner.classList.remove('show');
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  if (outcome === 'accepted') showToast('✅ App installed! Find it on your home screen.');
+});
+
+document.getElementById('btn-install-dismiss').addEventListener('click', () => {
+  installBanner.classList.remove('show');
+  sessionStorage.setItem('install-dismissed', '1');
+});
+
+window.addEventListener('appinstalled', () => {
+  installBanner.classList.remove('show');
+  showToast('🎉 The Money Tracker installed successfully!');
+});
+
+// ═══════════════════════════════════
+//  PWA — iOS Detection & Install Sheet
+// ═══════════════════════════════════
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandaloneMode = window.navigator.standalone === true;
+
+if (isIos && !isInStandaloneMode) {
+  // Show hint on welcome screen
+  document.getElementById('ios-install-hint').style.display = 'block';
+}
+
+function showIosSheet() { document.getElementById('ios-sheet').classList.add('show'); }
+function closeIosSheet() { document.getElementById('ios-sheet').classList.remove('show'); }
+document.getElementById('ios-sheet').addEventListener('click', function(e) {
+  if (e.target === this) closeIosSheet();
+});
+
+// ═══════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════
+const SERVER = 'https://3967e345-2e63-4cb6-bb9e-f7d35802e0d7.web.createdevserver.com';
+let user = {};
+let chatHistory = [];
+let selectedCats = [];
+
+// ═══════════════════════════════════
+//  NAV
+// ═══════════════════════════════════
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showStep(n) {
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById('step-'+i);
+    if (el) el.style.display = (i===n) ? 'block' : 'none';
+  });
+  const pw = document.getElementById('progress-wrap');
+  const fill = document.getElementById('progress-fill');
+  const lbl = document.getElementById('step-label-text');
+  if (n === 4) { pw.style.display = 'none'; }
+  else {
+    pw.style.display = 'block';
+    const labels = ['','Step 1 of 3 — Account Setup','Step 2 of 3 — Financial Profile','Step 3 of 3 — AI Chat'];
+    const pcts   = ['','33','66','100'];
+    lbl.textContent = labels[n];
+    fill.style.width = pcts[n] + '%';
+  }
+  goTo('screen-app');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ═══════════════════════════════════
+//  STEP 1
+// ═══════════════════════════════════
+function submitAccount() {
+  const name  = document.getElementById('input-name').value.trim();
+  const email = document.getElementById('input-email').value.trim();
+  const err   = document.getElementById('err-account');
+  if (!name || !email || !email.includes('@')) { err.style.display='block'; return; }
+  err.style.display = 'none';
+  user.name      = name;
+  user.firstName = name.split(' ')[0];
+  user.email     = email;
+  document.getElementById('user-chip').style.display = 'flex';
+  document.getElementById('user-chip-name').textContent = user.firstName;
+  document.getElementById('user-avatar').textContent = user.firstName[0].toUpperCase();
+  document.getElementById('step2-greeting').textContent = `Great to meet you, ${user.firstName}! Fill in your financial details below.`;
+  showStep(2);
+}
+
+// ═══════════════════════════════════
+//  STEP 2
+// ═══════════════════════════════════
+function toggleCat(el) {
+  el.classList.toggle('selected');
+  const v = el.dataset.val;
+  if (el.classList.contains('selected')) selectedCats.push(v);
+  else selectedCats = selectedCats.filter(c => c !== v);
+}
+
+function submitProfile() {
+  const goal     = document.getElementById('input-goal').value.trim();
+  const income   = parseFloat(document.getElementById('input-income').value) || 0;
+  const expenses = parseFloat(document.getElementById('input-expenses').value) || 0;
+  const err      = document.getElementById('err-profile');
+  if (!goal || income <= 0 || expenses <= 0) { err.style.display='block'; return; }
+  err.style.display = 'none';
+  user.goal        = goal;
+  user.income      = income;
+  user.expenses    = expenses;
+  user.categories  = [...selectedCats];
+  user.net         = income - expenses;
+  const savedTarget = parseFloat(document.getElementById('input-savings').value) || 0;
+  user.recommended = savedTarget || Math.round(Math.max(user.net*0.20, user.net-200) / 50) * 50;
+  user.savingsRate = ((user.recommended / income)*100).toFixed(1);
+  user.discretionary = user.net - user.recommended;
+  showStep(3);
+  initChat();
+}
+
+// ═══════════════════════════════════
+//  STEP 3: CHAT
+// ═══════════════════════════════════
+const catLabels = { housing:'Housing/Rent', food:'Food & Dining', transport:'Transportation', subscriptions:'Subscriptions', healthcare:'Healthcare', debt:'Debt Payments', shopping:'Shopping', travel:'Travel' };
+
+function initChat() {
+  chatHistory = [];
+  document.getElementById('chat-window').innerHTML = '';
+  document.getElementById('chat-sub').textContent = `Hey ${user.firstName}! Ask anything — then hit "Generate My Plan" when you're ready.`;
+  const opening = `Hey ${user.firstName}! 👋 Welcome to The Money Tracker — I'm your personal AI financial assistant.\n\nI can see your goal is: "${user.goal}"\n\nWith $${user.income.toLocaleString()}/mo income and $${user.expenses.toLocaleString()}/mo expenses, you have $${user.net.toLocaleString()} to work with each month. I'm already putting together your personalized plan!\n\nFeel free to ask me anything about budgeting, saving, investing, or debt — I'm here to help. 💚`;
+  addMsg('assistant', opening);
+  chatHistory.push({ role:'system', content:`You are a warm, encouraging personal finance AI assistant called "The Money Tracker". The user's name is ${user.firstName}. Goal: "${user.goal}". Monthly income: $${user.income}. Monthly expenses: $${user.expenses}. Net monthly: $${user.net}. Recommended savings: $${user.recommended}/mo (${user.savingsRate}% savings rate). Top categories: ${user.categories.map(c=>catLabels[c]||c).join(', ')||'not specified'}. Be concise, warm, practical. Always address the user by first name.` });
+  chatHistory.push({ role:'assistant', content: opening });
+}
+
+function addMsg(role, text) {
+  const win = document.getElementById('chat-window');
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.innerHTML = `<div class="msg-avatar">${role==='assistant'?'🤖':'👤'}</div><div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div>`;
+  win.appendChild(d);
+  win.scrollTop = win.scrollHeight;
+}
+
+function addTyping() {
+  const win = document.getElementById('chat-window');
+  const d = document.createElement('div');
+  d.className='msg assistant'; d.id='typing-indicator';
+  d.innerHTML=`<div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+  win.appendChild(d); win.scrollTop=win.scrollHeight;
+}
+function removeTyping() { const t=document.getElementById('typing-indicator'); if(t)t.remove(); }
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  document.getElementById('btn-send').disabled = true;
+  addMsg('user', text);
+  chatHistory.push({ role:'user', content:text });
+  addTyping();
+  try {
+    const res = await fetch(`${SERVER}/integrations/chat-gpt/conversationgpt4`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ messages: chatHistory, stream:false })
+    });
+    const data = await res.json();
+    removeTyping();
+    const reply = (data.message?.includes('out of credits'))
+      ? localReply(text)
+      : (data.choices?.[0]?.message?.content || data.content || data.message || localReply(text));
+    addMsg('assistant', reply);
+    chatHistory.push({ role:'assistant', content:reply });
+  } catch {
+    removeTyping();
+    const reply = localReply(text);
+    addMsg('assistant', reply);
+    chatHistory.push({ role:'assistant', content:reply });
+  }
+  document.getElementById('btn-send').disabled = false;
+  document.getElementById('chat-input').focus();
+}
+
+function localReply(msg) {
+  const m = msg.toLowerCase(), n = user.firstName;
+  if (m.includes('save')||m.includes('saving')) return `Great question, ${n}! With $${user.net.toLocaleString()} net each month, I recommend saving $${user.recommended.toLocaleString()}/mo — that's a ${user.savingsRate}% savings rate. Best move: automate it on payday so it happens without thinking. 💪`;
+  if (m.includes('budget')) return `For your budget, ${n}, I'd suggest 50/30/20: 50% needs (~$${Math.round(user.income*0.5).toLocaleString()}), 30% wants (~$${Math.round(user.income*0.3).toLocaleString()}), 20% savings (~$${Math.round(user.income*0.2).toLocaleString()}). You're in a great spot to make this work!`;
+  if (m.includes('debt')) return `Tackling debt is one of the best moves you can make, ${n}. Use the avalanche method: pay minimums everywhere, then throw every extra dollar at your highest-interest debt first. This saves the most money long-term.`;
+  if (m.includes('invest')) return `Investing is the key to long-term wealth, ${n}! Once you have 3–6 months of expenses saved, start with a low-cost index fund like VTI or VTSAX. Even $200/month at 7% average return grows to over $240k in 30 years. Start early!`;
+  if (m.includes('emergency')||m.includes('fund')) return `An emergency fund is your financial safety net, ${n}. Aim for 3–6 months of expenses ($${Math.round(user.expenses*3).toLocaleString()}–$${Math.round(user.expenses*6).toLocaleString()}). Keep it in a high-yield savings account so it earns 4–5% while you wait.`;
+  return `Great thing to think about, ${n}! Your $${user.net.toLocaleString()} monthly surplus gives you real flexibility. My main advice: automate savings first, then enjoy the rest guilt-free. Ready to see your full plan? Hit "Generate My Plan" below! 🎯`;
+}
+
+// ═══════════════════════════════════
+//  STEP 4: PLAN
+// ═══════════════════════════════════
+function buildPlan() {
+  const { firstName:n, net, recommended:rec, savingsRate:rate, discretionary:disc, income, expenses, goal, categories } = user;
+
+  document.getElementById('plan-hero-sub').textContent = `${n}'s Personalized Financial Plan • Built just for you`;
+
+  // Metrics
+  document.getElementById('metrics-grid').innerHTML = [
+    { icon:'💰', value:`$${net.toLocaleString()}`, label:'Net Monthly Cash', badge:'After all expenses' },
+    { icon:'📈', value:`${rate}%`, label:'Savings Rate', badge:'of monthly income' },
+    { icon:'🎯', value:`$${rec.toLocaleString()}/mo`, label:'Savings Goal', badge:'Auto-transfer recommended' },
+    { icon:'💵', value:`$${disc.toLocaleString()}`, label:'Discretionary', badge:'Yours guilt-free' },
+  ].map(m=>`<div class="metric-card"><div class="metric-icon">${m.icon}</div><div class="metric-value">${m.value}</div><div class="metric-label">${m.label}</div><div class="metric-badge">${m.badge}</div></div>`).join('');
+
+  const gw = goal.toLowerCase();
+  const isHouse = gw.includes('house')||gw.includes('home')||gw.includes('down payment');
+  const isDebt  = gw.includes('debt')||gw.includes('loan')||gw.includes('pay off');
+
+  const catBudget = { housing:Math.round(expenses*.38), food:Math.round(expenses*.16), transport:Math.round(expenses*.12), subscriptions:Math.round(expenses*.05), healthcare:Math.round(expenses*.08), debt:Math.round(expenses*.15), shopping:Math.round(expenses*.10), travel:Math.round(expenses*.07) };
+  const catEmoji  = { housing:'🏠', food:'🍔', transport:'🚗', subscriptions:'📺', healthcare:'🏥', debt:'💳', shopping:'🛍️', travel:'✈️' };
+  const catTips   = { housing:'Keep housing under 30% of gross income.', food:'Meal prepping 3x/week saves $150–200/mo.', transport:'Compare insurance annually — easy $50–150/mo savings.', subscriptions:'Audit quarterly — cancel anything unused.', healthcare:'Use an HSA if available — triple tax advantage.', debt:'Avalanche method: target highest-interest debt first.', shopping:'48-hour rule before any non-essential purchase.', travel:'Book 6–8 weeks ahead and use credit card points.' };
+
+  const cats  = categories.length > 0 ? categories : ['housing','food','transport'];
+  const budgetData = [...cats.map(c=>({ label:(catEmoji[c]||'')+' '+(catLabels[c]||c), amount:catBudget[c]||Math.round(expenses/cats.length) })), { label:'💚 Savings', amount:rec }, { label:'✨ Discretionary', amount:disc }];
+  const maxAmt = Math.max(...budgetData.map(b=>b.amount));
+
+  const steps = [
+    { n:1, title:'Open a High-Yield Savings Account', desc:'Open a HYSA (Marcus, Ally, or SoFi) earning 4–5% APY specifically for your goal. Separate accounts = better discipline.', time:'This week' },
+    { n:2, title:`Automate $${rec.toLocaleString()}/mo Transfer`, desc:'Schedule an automatic transfer on payday. Automating removes the willpower requirement — it just happens.', time:'This week' },
+    { n:3, title:'Audit Subscriptions', desc:'List every recurring charge. Cancel anything untouched in 30 days. Average household wastes $50–150/mo on forgotten subs.', time:'Week 2' },
+    { n:4, title:`Build a $${Math.round(expenses*3).toLocaleString()} Emergency Fund`, desc:'3 months of expenses in a liquid account before going all-in on your main goal. Your financial safety net.', time:'Months 1–4' },
+    { n:5, title:'Track Spending Weekly', desc:'10 minutes every Sunday reviewing transactions. Weekly reviews catch budget drift before it becomes a problem.', time:'Ongoing' },
+    { n:6, title: isDebt?'Apply Debt Avalanche Strategy':isHouse?'Research First-Time Buyer Programs':'Explore Side Income', desc: isDebt?'Pay minimums on all debts, throw extra cash at the highest-rate debt first. Saves the most money over time.':isHouse?'FHA loans require only 3.5% down. Many states offer grants for first-time buyers — research yours.':'Even $300–500/mo from freelancing or gig work can shave months off your timeline.', time:'Month 2' },
+    { n:7, title:'Quarterly Plan Review', desc:'Life changes — so should your plan. Every 3 months, revisit your income, expenses, and goal progress.', time:'Quarterly' },
+  ];
+
+  const qw = [
+    { title:'🍽️ Meal Prep 3x/Week', desc:'Cook in batches to cut food spending and impulse orders dramatically.', save:'$150–200/mo' },
+    { title:'📺 Cancel Unused Subs', desc:'Check every app and service. Cancel anything untouched in 30 days — takes 10 minutes.', save:'$50–120/mo' },
+    { title:'🚗 Shop Insurance Rates', desc:'Use The Zebra or Policygenius to compare auto/renters rates. Often saves hundreds.', save:'$50–150/mo' },
+  ];
+
+  const ms = [
+    { month:'Month 1',  ms:`$${rec.toLocaleString()} saved — HYSA open, auto-transfer live ✅` },
+    { month:'Month 3',  ms:`$${(rec*3).toLocaleString()} saved — Emergency fund underway 🛡️` },
+    { month:'Month 6',  ms:`$${(rec*6).toLocaleString()} saved — Emergency fund complete 🎯` },
+    { month:'Month 12', ms:`$${(rec*12).toLocaleString()} saved — Incredible momentum! 🔥` },
+    { month:'Month 24', ms:`$${(rec*24).toLocaleString()} saved — Over halfway there 💪` },
+    { month:'Month 36', ms:`$${(rec*36).toLocaleString()} saved — Goal within reach! 🏆` },
+  ];
+
+  document.getElementById('plan-content').innerHTML = `
+    <div class="card">
+      <div class="section-title">🗺️ ${n}'s ${isHouse?'House Fund Blueprint 🏠':isDebt?'Debt Freedom Plan 💳':'Financial Growth Plan 💚'}</div>
+      <p style="color:var(--gray-600);line-height:1.7;margin-bottom:1.5rem">By saving $${rec.toLocaleString()}/month — just ${rate}% of your income — you'll have $${(rec*36).toLocaleString()} in 36 months. Start this week by automating your first transfer. The hardest part is starting, and you've already done that. Let's go! 🚀</p>
+      <div class="section-title">✅ Your 7-Step Action Plan</div>
+      <div class="steps-list">${steps.map(s=>`<div class="step-item"><div class="step-num">${s.n}</div><div><div class="step-title">${s.title}</div><div class="step-desc">${s.desc}</div><span class="step-badge">⏱ ${s.time}</span></div></div>`).join('')}</div>
+    </div>
+    <div class="card">
+      <div class="section-title">⚡ Quick Wins This Week</div>
+      <div class="qw-grid">${qw.map(q=>`<div class="qw-card"><div class="qw-title">${q.title}</div><div class="qw-desc">${q.desc}</div><div class="qw-save">💚 Save ${q.save}</div></div>`).join('')}</div>
+    </div>
+    <div class="card">
+      <div class="section-title">📊 Monthly Budget Breakdown</div>
+      <div class="bar-chart">${budgetData.map(b=>`<div class="bar-row"><div class="bar-label">${b.label}</div><div class="bar-track"><div class="bar-fill" style="width:0%" data-pct="${Math.round((b.amount/maxAmt)*100)}">$${b.amount.toLocaleString()}</div></div></div>`).join('')}</div>
+      ${categories.length>0?`<div class="hint" style="margin-top:.85rem">💡 ${categories.slice(0,2).map(c=>catTips[c]).join(' • ')}</div>`:''}
+    </div>
+    <div class="card">
+      <div class="section-title">🏆 ${n}'s Milestone Roadmap</div>
+      <div class="milestone-list">${ms.map(m=>`<div class="ms-item"><div class="ms-left"><div class="ms-dot"></div><div class="ms-line"></div></div><div><div class="ms-month">${m.month}</div><div class="ms-text">${m.ms}</div></div></div>`).join('')}</div>
+    </div>
+    <div class="quote-block">"Do not save what is left after spending, but spend what is left after saving." — Warren Buffett</div>`;
+
+  showStep(4);
+
+  // Animate bars
+  setTimeout(() => {
+    document.querySelectorAll('.bar-fill').forEach(b => {
+      const p = b.dataset.pct;
+      b.style.width = '0%';
+      requestAnimationFrame(() => { b.style.width = p + '%'; });
+    });
+  }, 300);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+showStep(1);
+</script>
+</body>
+</html>
